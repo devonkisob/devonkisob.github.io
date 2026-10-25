@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SYDE 572 Assignment 2 · Devon Kisob</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}]})"></script>
+  <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+  <header class="site-header wrap">
+    <p class="site-name"><a href="../../">Devon Kisob</a></p>
+    <p class="site-role">Systems Design Engineering, University of Waterloo</p>
+    <nav class="route" aria-label="Main">
+      <ul>
+        <li><a href="../../">About</a></li>
+        <li><a href="../../publications/">Publications</a></li>
+        <li><a href="../../coursework/" aria-current="page">Coursework</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <p class="crumbs"><a href="../../coursework/">Coursework</a> / SYDE 572, Pattern Recognition / Assignment 2</p>
+    <h1 class="page-title">Assignment 2: Linear Regression</h1>
+    <p class="lede">Linear basis function regression on the Boston Housing data, predicting median house value from 13 town features. Part 1 uses polynomial basis functions, with and without L2 regularization. Part 2 uses Gaussian basis functions centred on random training points. Cross-validation picks the regularization constant in both parts.</p>
+
+    <nav class="toc" aria-label="Contents">
+      <ol>
+        <li><a href="#setup">Setup</a></li>
+        <li><a href="#part1">Part 1: Polynomial basis functions</a>
+          <ol>
+            <li><a href="#a">(a) Error versus degree</a></li>
+            <li><a href="#b">(b) Degree-1 weights</a></li>
+            <li><a href="#c">(c) One-feature visualization</a></li>
+            <li><a href="#d">(d) Regularized degree-8 fit</a></li>
+          </ol>
+        </li>
+        <li><a href="#part2">Part 2: Gaussian basis functions</a>
+          <ol>
+            <li><a href="#e">(e) Error versus number of basis functions</a></li>
+            <li><a href="#f">(f) Regularized fit with 90 basis functions</a></li>
+          </ol>
+        </li>
+        <li><a href="#code">Code</a></li>
+      </ol>
+    </nav>
+
+    <section id="setup">
+      <h2>Setup</h2>
+      <p><strong>Data.</strong> 506 towns, 13 input features and the target MEDV (median home value in $1000s). The first 100 towns are the training set and the remaining 406 are the test set.</p>
+      <p><strong>Feature numbering.</strong> The assignment calls the weight on the 6th feature \(w_5\), so it counts features from 0. I follow that convention for \(X_n(:,2)\) and "the 2nd feature" in (c) and (d): both mean column index 2, <strong>INDUS</strong> (proportion of non-retail business acres). Column 1, ZN, would also be a poor choice: it is zero for 63 of the 100 training towns. In the weight table, \(w_0\) is the bias and \(w_i\) is the weight on feature \(i\) counted from 1, so RM is \(w_6\) there.</p>
+      <p><strong>Normalization.</strong> Each feature is standardized with the training-set mean and standard deviation, \(x \leftarrow (x - \mu_{\text{train}}) / \sigma_{\text{train}}\), and the test set is transformed with the same \(\mu, \sigma\). CHAS (borders the Charles River) is 0 for all of the first 100 towns, so \(\sigma = 0\); I set \(\sigma = 1\) for it, leaving a column of zeros that receives weight 0. The target is not normalized, so all errors are in $1000s.</p>
+      <p><strong>Models.</strong> With design matrix \(\Phi\) and targets \(\mathbf{t}\), the weights minimize</p>
+      \[ E(\mathbf{w}) = \tfrac{1}{2}\lVert \Phi\mathbf{w} - \mathbf{t} \rVert^2 + \tfrac{\lambda}{2}\lVert \mathbf{w}_{1:} \rVert^2 \quad\Rightarrow\quad \mathbf{w} = (\lambda \tilde{I} + \Phi^\top\Phi)^{-1}\Phi^\top\mathbf{t}, \]
+      <p>where \(\tilde{I}\) is the identity with a 0 in the bias position. The bias is left unpenalized; otherwise a large \(\lambda\) shrinks predictions toward $0 rather than toward the mean price. For \(\lambda = 0\), the high-degree design matrices are rank-deficient (the CHAS column) and badly conditioned, so I solve with <code>np.linalg.lstsq</code>, which returns the minimum-norm least-squares solution.</p>
+      <p>The polynomial basis for degree \(M\) is \(\boldsymbol\phi(\mathbf{x}) = (1,\, x_1, \dots, x_{13},\, x_1^2, \dots, x_{13}^2,\, \dots,\, x_1^M, \dots, x_{13}^M)\): single-variable monomials only, \(1 + 13M\) weights. The Gaussian basis is</p>
+      \[ \phi_j(\mathbf{x}) = \exp\!\left(-\frac{\lVert \mathbf{x} - \boldsymbol\mu_j \rVert^2}{2s^2}\right), \quad s = 2, \]
+      <p>plus a bias column. The width \(s = 2\) is about half the median distance (4.6) between normalized training points, so each basis function covers a neighbourhood of similar towns.</p>
+      <p><strong>Error.</strong> \(E_{\text{RMS}} = \sqrt{\tfrac{1}{N}\sum_n (y(\mathbf{x}_n) - t_n)^2}\). Cross-validation splits the 100 training towns into 10 consecutive folds of 10. Each fold is held out once, the model is trained on the other 90 (with normalization fixed from all 100), and the reported value is the mean of the 10 validation RMS errors.</p>
+    </section>
+
+    <section id="part1">
+      <h2>Part 1: Polynomial basis functions</h2>
+
+      <h3 id="a">(a) Error versus degree</h3>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Degree</th><th>Weights</th><th>Training RMS</th><th>Test RMS</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>14</td><td>2.037</td><td>36.44</td></tr>
+            <tr><td>2</td><td>27</td><td>1.578</td><td>1,097</td></tr>
+            <tr><td>3</td><td>40</td><td>1.449</td><td>\(4.87 \times 10^{4}\)</td></tr>
+            <tr><td>4</td><td>53</td><td>1.271</td><td>\(2.19 \times 10^{7}\)</td></tr>
+            <tr><td>5</td><td>66</td><td>1.097</td><td>\(1.84 \times 10^{10}\)</td></tr>
+            <tr><td>6</td><td>79</td><td>1.073</td><td>\(5.02 \times 10^{12}\)</td></tr>
+            <tr><td>7</td><td>92</td><td>0.882</td><td>\(6.88 \times 10^{15}\)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure>
+        <img src="media/p1_poly_errors.png" alt="Log-scale RMS error versus polynomial degree 1 to 7: training error falls gently from 2.04 to 0.88 while test error climbs in a straight line on the log scale from 36 to 6.9 times ten to the fifteenth.">
+        <figcaption>Training error falls steadily; test error grows by roughly three orders of magnitude per degree. The y-axis is logarithmic.</figcaption>
+      </figure>
+      <p><strong>Comment.</strong> Training error decreases monotonically, as it must: each degree's model contains the previous one. By degree 7 there are 92 weights for 100 training points, and the model fits the training set to within $880.</p>
+      <p>Test error is the opposite: overfitting compounded by extrapolation. The first 100 rows are a narrow, geographically clustered set of suburbs, and the test set contains towns far outside their range. The worst is crime rate. Training CRIM has mean 0.28 and standard deviation 0.39, but test towns reach CRIM = 89, which is 229 standard deviations out. For that town (actual value $10,400), the degree-1 model’s −1.34 weight on CRIM drives the prediction to −$284,000. Its median absolute test error is only $4,850; the RMS of 36 comes from a handful of high-crime towns. Each extra degree raises those values to a higher power (\(229^7 \approx 3 \times 10^{16}\)), which is why test RMS grows by a near-constant factor per degree. For reference, predicting the training mean for every test town gives a test RMS of 9.83. No unregularized polynomial beats that.</p>
+
+      <h3 id="b">(b) Degree-1 weights</h3>
+      <p>Because the inputs are normalized, each learned weight \(w_i\) is the change in predicted price, in $1000s, per one training standard deviation of feature \(i\). Dividing by \(\sigma_i\) converts back to original units. The bias in original units is \(w_0 - \sum_i w_i \mu_i / \sigma_i\).</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Weight</th><th>Feature</th><th>\(\mu_{\text{train}}\)</th><th>\(\sigma_{\text{train}}\)</th><th>Normalized \(w_i\)</th><th>Per original unit \(w_i / \sigma_i\)</th></tr></thead>
+          <tbody>
+            <tr><td>\(w_0\)</td><td>bias</td><td></td><td></td><td>22.309</td><td>−37.904</td></tr>
+            <tr><td>\(w_1\)</td><td>CRIM, crime rate</td><td>0.283</td><td>0.387</td><td>−1.338</td><td>−3.456</td></tr>
+            <tr><td>\(w_2\)</td><td>ZN, large-lot zoning</td><td>12.385</td><td>22.852</td><td>0.123</td><td>0.0054</td></tr>
+            <tr><td>\(w_3\)</td><td>INDUS, industrial acres</td><td>6.669</td><td>3.147</td><td>−0.531</td><td>−0.169</td></tr>
+            <tr><td>\(w_4\)</td><td>CHAS, river</td><td>0</td><td>(0)</td><td>0</td><td>0</td></tr>
+            <tr><td>\(w_5\)</td><td>NOX, nitric oxides</td><td>0.471</td><td>0.047</td><td>1.003</td><td>21.515</td></tr>
+            <tr class="final"><td>\(w_6\)</td><td>RM, rooms per dwelling</td><td>6.234</td><td>0.488</td><td>4.196</td><td>8.591</td></tr>
+            <tr><td>\(w_7\)</td><td>AGE, pre-1940 units</td><td>56.252</td><td>27.339</td><td>−2.166</td><td>−0.079</td></tr>
+            <tr class="final"><td>\(w_8\)</td><td>DIS, distance to jobs</td><td>5.177</td><td>1.405</td><td>0.011</td><td>0.0076</td></tr>
+            <tr><td>\(w_9\)</td><td>RAD, highway access</td><td>3.960</td><td>1.385</td><td>−0.194</td><td>−0.140</td></tr>
+            <tr><td>\(w_{10}\)</td><td>TAX, property tax</td><td>289.49</td><td>45.692</td><td>−0.349</td><td>−0.0076</td></tr>
+            <tr><td>\(w_{11}\)</td><td>PTRATIO, pupil–teacher</td><td>18.690</td><td>1.690</td><td>0.261</td><td>0.155</td></tr>
+            <tr><td>\(w_{12}\)</td><td>B</td><td>385.30</td><td>27.250</td><td>0.181</td><td>0.0066</td></tr>
+            <tr><td>\(w_{13}\)</td><td>LSTAT, % lower status</td><td>10.773</td><td>5.671</td><td>0.149</td><td>0.026</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure>
+        <img src="media/p1_weights.png" alt="Horizontal bar chart of the 13 normalized degree-1 weights. RM, highlighted, is largest at plus 4.20; AGE is minus 2.17, CRIM minus 1.34, NOX plus 1.00; DIS is almost zero at plus 0.011.">
+        <figcaption>Normalized weights are directly comparable: RM (rooms) dominates, and DIS (highlighted with RM) is essentially zero.</figcaption>
+      </figure>
+      <p><strong>RM, \(w_5\)</strong>: The weight is +4.196 per standard deviation, or <strong>+8.59 ($8,590) per additional room</strong>. This is reasonable. More rooms means a bigger house, so the sign is right, and an extra room adding about 40% of the $22,300 average price is plausible. It is also the largest weight in the model, consistent with RM having the strongest correlation with price in the training data (\(r = 0.85\)).</p>
+      <p><strong>DIS, \(w_7\)</strong>: The weight is +0.011 per standard deviation, or <strong>+0.0076 ($7.60) per unit of distance</strong>, which is effectively zero. On its own, DIS is positively related to price in these towns (\(r = 0.16\)): farther from the city centre means more suburban. But DIS is strongly correlated with ZN (0.60), NOX (−0.48) and CRIM (−0.36), so once those are in the model, distance adds almost nothing. A near-zero weight is therefore defensible, but it does not mean distance is irrelevant. It means its effect has been credited to correlated features. This also shows the limits of reading single weights with 14 parameters and 100 correlated samples: NOX (+1.00) and LSTAT (+0.15) come out positive, although each is strongly negatively correlated with price on its own (−0.48 and −0.74).</p>
+
+      <h3 id="c">(c) One-feature visualization</h3>
+      <p>Using only INDUS (normalized as above), polynomials of degree 1 to 10 were fitted to the 100 training towns:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Degree</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th></tr></thead>
+          <tbody>
+            <tr><td>Train RMS</td><td>5.24</td><td>4.35</td><td>4.35</td><td>4.25</td><td>4.23</td><td>4.21</td><td>3.99</td><td>3.92</td><td>3.89</td><td>3.87</td></tr>
+            <tr><td>Test RMS</td><td>9.86</td><td>18.5</td><td>17.3</td><td>84.1</td><td>177</td><td>1,009</td><td>\(2.9 \times 10^{4}\)</td><td>\(2.0 \times 10^{5}\)</td><td>\(1.5 \times 10^{6}\)</td><td>\(1.8 \times 10^{7}\)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure class="wide">
+        <img src="media/p1_vis.png" alt="Three panels of MEDV versus normalized INDUS with training points in blue, test points in orange and the fitted polynomial in purple, for degrees 1, 3 and 10. The shaded training range ends near x equals 2.7 while many test points sit at x equals 3.6 and beyond. The degree 1 line slopes down gently; the degree 3 curve turns sharply upward past the training range; the degree 10 curve oscillates wildly between training points.">
+        <figcaption>Degrees 1, 3 and 10. The shaded band is the range of INDUS in the training set; 47% of test towns lie to the right of it.</figcaption>
+      </figure>
+      <p><strong>Degree 1</strong> captures the one clear trend: more industrial land means cheaper housing. Its test RMS (9.86) is no better than predicting the mean, because INDUS alone explains little of the variation.</p>
+      <p><strong>Degree 3</strong> bends to follow the training data, flattening around \(x \approx 0.5\) and rising at the right edge to reach the few towns at \(x = 2\)–\(2.7\). Past the training range it keeps rising, predicting $50k+ homes for the large block of high-INDUS city towns at \(x = 3.6\) that actually sell for $5k–$30k.</p>
+      <p><strong>Degree 10</strong> shows classic overfitting. The training set contains only 24 distinct INDUS values, with large gaps (none between 0.47 and 1.32, or between 1.96 and 2.66). The polynomial dives to −$1,500 and shoots off the chart inside those gaps, even within the training range. Its training RMS is the lowest of the three, and its test RMS is \(1.8 \times 10^{7}\).</p>
+
+      <h3 id="d">(d) Regularized degree-8 fit</h3>
+      <p>A degree-8 polynomial in INDUS alone (9 weights), trained on the first 100 towns, with \(\lambda \in \{0, 0.01, 0.1, 1, 10, 100, 1000\}\) and 10-fold cross-validation:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>\(\lambda\)</th><th>0</th><th>0.01</th><th>0.1</th><th>1</th><th>10</th><th>100</th><th>1000</th></tr></thead>
+          <tbody>
+            <tr><td>Mean validation RMS</td><td>472.0</td><td>215.1</td><td>93.8</td><td>50.1</td><td>27.0</td><td>17.3</td><td><strong>6.98</strong></td></tr>
+            <tr><td>Median over folds</td><td>4.49</td><td>4.36</td><td>4.07</td><td>4.20</td><td>4.41</td><td>5.53</td><td>5.77</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure>
+        <img src="media/p1_reg_cv.png" alt="Log-log plot of validation RMS versus lambda. The mean over 10 folds falls steadily from 215 at lambda 0.01 to 6.98 at lambda 1000, marked best. A dashed baseline at 472 shows lambda equals 0. Faint per-fold lines show eight folds flat between 2 and 7 and two folds with errors in the hundreds or thousands that drop sharply as lambda grows.">
+        <figcaption>Mean validation RMS (blue) is driven by two folds (faint lines at top). The unregularized \(\lambda = 0\) result, 472.0, is the dashed baseline.</figcaption>
+      </figure>
+      <p><strong>Choice: \(\lambda = 1000\)</strong>, which has the lowest mean validation RMS (6.98, compared with 472 unregularized).</p>
+      <p>The per-fold lines show why the mean falls all the way to the largest \(\lambda\). For 8 of the 10 folds the validation error is flat at 2–7 for every \(\lambda\), and slightly favours small values (median best at \(\lambda = 0.1\)). The two outlying folds are the ones that force the polynomial to predict where it has no data. Fold 8 contains every training town with INDUS between 1.32 and 1.96, a gap the remaining points cannot constrain. Fold 10 contains the largest INDUS value, 2.66, which is extrapolation. Only strong regularization keeps the degree-8 curve tame there. That is the right lesson for this split, because 47% of the test set lies beyond the training range, so <strong>I would choose \(\lambda = 1000\)</strong>. Even so, the model is not safe far outside the data: its test RMS is still 2,947 (versus \(2.0 \times 10^{5}\) unregularized), because no penalty stops an 8th power from growing at \(x = 6.7\).</p>
+    </section>
+
+    <section id="part2">
+      <h2>Part 2: Gaussian basis functions</h2>
+
+      <h3 id="e">(e) Error versus number of basis functions</h3>
+      <p>All 13 normalized features, no regularization. The centres are the first \(K\) towns of one random permutation of the training set (seed 0), so each larger model contains the smaller one's centres.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>\(K\)</th><th>5</th><th>15</th><th>25</th><th>35</th><th>45</th><th>55</th><th>65</th><th>75</th><th>85</th><th>95</th></tr></thead>
+          <tbody>
+            <tr><td>Train RMS</td><td>4.62</td><td>3.69</td><td>2.77</td><td>2.08</td><td>1.61</td><td>1.41</td><td>1.26</td><td>1.08</td><td>1.00</td><td>0.21</td></tr>
+            <tr><td>Test RMS</td><td>9.80</td><td>9.50</td><td>9.49</td><td>9.24</td><td>9.20</td><td>9.24</td><td>9.36</td><td>9.21</td><td>9.01</td><td>8.98</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure>
+        <img src="media/p2_gauss_errors.png" alt="Log-scale RMS error versus number of Gaussian basis functions from 5 to 95. Training error falls from 4.6 to 0.21; test error stays flat near 9. Faint lines for nine other random centre draws show the same training trend, with test error spiking to between 11 and 29 at K equals 95 for several draws.">
+        <figcaption>Bold lines: the seed-0 centres. Faint lines: nine other random draws of centres, which show how much of the test curve depends on which towns become centres.</figcaption>
+      </figure>
+      <p><strong>Comment.</strong> Training error falls steadily as \(K\) grows, and drops sharply at \(K = 95\), where 96 weights almost interpolate 100 points. Test error barely moves from 9.8 and stays close to the 9.83 of a constant mean prediction. This is the opposite failure from the polynomials. A Gaussian decays to zero away from its centre, so for a test town unlike every training town all basis functions vanish and the model falls back to the bias, about the training mean. That is the case for 42% of test towns, whose largest basis activation is below 0.01. The Gaussian model therefore cannot blow up the way the polynomial did, but it cannot extrapolate either. The faint lines show the overfitting risk that remains: with other centre draws, test error at \(K = 95\) rises to 11–29, because the nearly interpolating fit is unstable for test towns that sit close to a centre.</p>
+
+      <h3 id="f">(f) Regularized fit with 90 basis functions</h3>
+      <p>All features, 90 Gaussian basis functions (the first 90 of the same permutation), first 100 towns, 10-fold cross-validation. The centres stay fixed across folds; only the weights are refit.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>\(\lambda\)</th><th>0</th><th>0.01</th><th>0.1</th><th>1</th><th>10</th><th>100</th><th>1000</th></tr></thead>
+          <tbody>
+            <tr><td>Mean validation RMS</td><td>240.9</td><td>3.43</td><td><strong>2.97</strong></td><td>3.14</td><td>3.76</td><td>4.70</td><td>5.50</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure>
+        <img src="media/p2_reg_cv.png" alt="Log-log plot of validation RMS versus lambda for 90 Gaussian basis functions. The mean is 3.43 at lambda 0.01, lowest at 2.97 at lambda 0.1, then rises steadily to 5.50 at lambda 1000. The lambda equals 0 baseline is a dashed line far above at 240.9.">
+        <figcaption>A noticeable U-shape: too little regularization overfits, too much underfits. The unregularized baseline (240.9) is the dashed line.</figcaption>
+      </figure>
+      <p><strong>Choice: \(\lambda = 0.1\)</strong> (mean validation RMS 2.97). Here cross-validation gives a textbook bias–variance curve. With \(\lambda = 0\), 91 weights are fit to 90 points in each fold, so the solution interpolates the training points with huge, cancelling weights, and the validation error is 240.9. Even \(\lambda = 0.01\) removes almost all of that (3.43). Past \(\lambda = 0.1\) the penalty starts to flatten the fit, and error rises steadily to 5.50. The curve is much smoother than in (d), because the Gaussian model's errors stay bounded when a fold has unusual towns.</p>
+    </section>
+
+    <section id="code">
+      <h2>Code</h2>
+      <p>One function per assignment part: <code>polynomial_regression</code> (a, b), <code>polynomial_regression_1d_vis</code> (c), <code>polynomial_regression_reg</code> (d), <code>gaussian_regression</code> (e), <code>gaussian_regression_reg</code> (f). Running the file prints every number in this report. <code>fit</code> is shared: least squares for \(\lambda = 0\) and the regularized normal equations otherwise.</p>
+      <details open>
+        <summary>regression.py</summary>
+<pre><code class="language-python">import os
+import numpy as np
+
+NAMES = [&quot;CRIM&quot;, &quot;ZN&quot;, &quot;INDUS&quot;, &quot;CHAS&quot;, &quot;NOX&quot;, &quot;RM&quot;, &quot;AGE&quot;, &quot;DIS&quot;, &quot;RAD&quot;, &quot;TAX&quot;, &quot;PTRATIO&quot;, &quot;B&quot;, &quot;LSTAT&quot;]
+LAMBDAS = [0, 0.01, 0.1, 1, 10, 100, 1000]
+N_TRAIN = 100
+FEATURE = 2   # X[:, 2] = INDUS (0-indexed, matching w5 = 6th feature)
+S = 2.0       # Gaussian basis width, in normalized units
+SEED = 0
+
+
+def load(path=os.path.join(os.path.dirname(os.path.abspath(__file__)), &quot;..&quot;, &quot;housing.data&quot;)):
+    data = np.loadtxt(path)
+    return data[:, :13], data[:, 13]
+
+
+def normalize(X_train, X_test):
+    mu, sd = X_train.mean(0), X_train.std(0)
+    sd[sd == 0] = 1   # CHAS is 0 for all of the first 100 towns
+    return (X_train - mu) / sd, (X_test - mu) / sd, mu, sd
+
+
+def split(X, t, n=N_TRAIN):
+    Xtr, Xte, mu, sd = normalize(X[:n], X[n:])
+    return Xtr, t[:n], Xte, t[n:], mu, sd
+
+
+def poly_design(X, degree):
+    X = X.reshape(len(X), -1)
+    return np.hstack([np.ones((len(X), 1))] + [X ** k for k in range(1, degree + 1)])
+
+
+def gauss_design(X, centers, s=S):
+    d2 = ((X[:, None, :] - centers[None, :, :]) ** 2).sum(-1)
+    return np.hstack([np.ones((len(X), 1)), np.exp(-d2 / (2 * s * s))])
+
+
+def fit(Phi, t, lam=0.0):
+    if lam == 0:
+        return np.linalg.lstsq(Phi, t, rcond=None)[0]
+    I = np.eye(Phi.shape[1])
+    I[0, 0] = 0   # do not penalize the bias
+    return np.linalg.solve(lam * I + Phi.T @ Phi, Phi.T @ t)
+
+
+def rms(Phi, w, t):
+    return np.sqrt(np.mean((Phi @ w - t) ** 2))
+
+
+def cross_validate(design, X, t, lambdas=LAMBDAS, k=10):
+    folds = np.array_split(np.arange(len(X)), k)
+    errs = np.zeros((len(lambdas), k))
+    for j, val in enumerate(folds):
+        tr = np.setdiff1d(np.arange(len(X)), val)
+        Phi_tr, Phi_val = design(X[tr]), design(X[val])
+        for i, lam in enumerate(lambdas):
+            errs[i, j] = rms(Phi_val, fit(Phi_tr, t[tr], lam), t[val])
+    return errs.mean(1), errs
+
+
+def polynomial_regression(degrees=range(1, 8)):
+    Xtr, ttr, Xte, tte, _, _ = split(*load())
+    train, test, weights = [], [], []
+    for d in degrees:
+        w = fit(poly_design(Xtr, d), ttr)
+        train.append(rms(poly_design(Xtr, d), w, ttr))
+        test.append(rms(poly_design(Xte, d), w, tte))
+        weights.append(w)
+    return list(degrees), np.array(train), np.array(test), weights
+
+
+def polynomial_regression_1d_vis(degree, feature=FEATURE):
+    Xtr, ttr, Xte, tte, mu, sd = split(*load())
+    xtr, xte = Xtr[:, feature], Xte[:, feature]
+    w = fit(poly_design(xtr, degree), ttr)
+    return dict(w=w, xtr=xtr, ttr=ttr, xte=xte, tte=tte, mu=mu[feature], sd=sd[feature],
+                train=rms(poly_design(xtr, degree), w, ttr), test=rms(poly_design(xte, degree), w, tte))
+
+
+def polynomial_regression_reg(degree=8, feature=FEATURE, lambdas=LAMBDAS):
+    Xtr, ttr, _, _, _, _ = split(*load())
+    return cross_validate(lambda X: poly_design(X[:, feature], degree), Xtr, ttr, lambdas)
+
+
+def centers(Xtr, K, seed=SEED):
+    return Xtr[np.random.default_rng(seed).permutation(len(Xtr))[:K]]
+
+
+def gaussian_regression(Ks=range(5, 100, 10), seed=SEED):
+    Xtr, ttr, Xte, tte, _, _ = split(*load())
+    train, test = [], []
+    for K in Ks:
+        mu = centers(Xtr, K, seed)
+        w = fit(gauss_design(Xtr, mu), ttr)
+        train.append(rms(gauss_design(Xtr, mu), w, ttr))
+        test.append(rms(gauss_design(Xte, mu), w, tte))
+    return list(Ks), np.array(train), np.array(test)
+
+
+def gaussian_regression_reg(K=90, lambdas=LAMBDAS, seed=SEED):
+    Xtr, ttr, _, _, _, _ = split(*load())
+    mu = centers(Xtr, K, seed)
+    return cross_validate(lambda X: gauss_design(X, mu), Xtr, ttr, lambdas)
+
+
+if __name__ == &quot;__main__&quot;:
+    np.set_printoptions(precision=4, suppress=True)
+    degrees, train, test, weights = polynomial_regression()
+    print(&quot;(a) degree  train RMS  test RMS&quot;)
+    for d, a, b in zip(degrees, train, test):
+        print(f&quot;    {d}       {a:8.4f}  {b:10.4f}&quot;)
+
+    _, _, _, _, mu, sd = split(*load())
+    w = weights[0]
+    print(&quot;(b) w0 (bias) =&quot;, round(w[0], 4))
+    for i, name in enumerate(NAMES):
+        print(f&quot;    w{i + 1:&lt;2} {name:8s} normalized {w[i + 1]:9.4f}   per unit {w[i + 1] / sd[i]:10.5f}&quot;)
+
+    for d in (1, 3, 5, 7, 10):
+        r = polynomial_regression_1d_vis(d)
+        print(f&quot;(c) degree {d}: train {r[&#x27;train&#x27;]:.4f}  test {r[&#x27;test&#x27;]:.4f}&quot;)
+
+    for name, f in [(&quot;(d)&quot;, polynomial_regression_reg), (&quot;(f)&quot;, gaussian_regression_reg)]:
+        mean, _ = f()
+        print(name, dict(zip(LAMBDAS, mean.round(4))), &quot;best lambda =&quot;, LAMBDAS[mean.argmin()])
+
+    Ks, train, test = gaussian_regression()
+    print(&quot;(e) K  train RMS  test RMS&quot;)
+    for K, a, b in zip(Ks, train, test):
+        print(f&quot;    {K:&lt;3} {a:8.4f}  {b:9.4f}&quot;)</code></pre>
+      </details>
+      <p class="small"><a href="code/regression.py">Download regression.py</a> · <a href="code/plots.py">plots.py</a> (produces every figure on this page) · <a href="housing.data">housing.data</a></p>
+    </section>
+  </main>
+
+  <footer class="wrap"><p>Devon Kisob, SYDE 572, Fall 2026</p></footer>
+</body>
+</html>
