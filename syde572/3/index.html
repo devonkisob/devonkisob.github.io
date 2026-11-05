@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SYDE 572 Assignment 3 · Devon Kisob</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}]})"></script>
+  <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+  <header class="site-header wrap">
+    <p class="site-name"><a href="../../">Devon Kisob</a></p>
+    <p class="site-role">Systems Design Engineering, University of Waterloo</p>
+    <nav class="route" aria-label="Main">
+      <ul>
+        <li><a href="../../">About</a></li>
+        <li><a href="../../publications/">Publications</a></li>
+        <li><a href="../../coursework/" aria-current="page">Coursework</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <p class="crumbs"><a href="../../coursework/">Coursework</a> / SYDE 572, Pattern Recognition / Assignment 3</p>
+    <h1 class="page-title">Assignment 3: PCA</h1>
+    <p class="lede">PCA by hand on a five-point dataset, then marginal views, PCA, explained variance and Isomap on the Iris dataset (150 flowers, 4 measurements in cm, 3 species).</p>
+
+    <nav class="toc" aria-label="Contents">
+      <ol>
+        <li><a href="#part1">Part 1: PCA by hand</a></li>
+        <li><a href="#part2">Part 2: Data visualization</a></li>
+        <li><a href="#part3">Part 3: PCA</a></li>
+        <li><a href="#part4">Part 4: Data compression</a></li>
+        <li><a href="#part5">Part 5: Non-linear components</a></li>
+        <li><a href="#code">Code</a></li>
+      </ol>
+    </nav>
+
+    <section id="part1">
+      <h2>Part 1: PCA by hand</h2>
+      <p><strong>Centre.</strong> The mean is \(\boldsymbol\mu = (0, 1)\), so the centred points are \((-2,-2), (-1,-1), (0,0), (1,1), (2,2)\).</p>
+      <p><strong>Covariance and eigenvectors.</strong> Each centred point has \(x_1 = x_2\), and \(\sum x_1^2 = 10\):</p>
+      \[ S = \frac{1}{5}\sum_n \tilde{\mathbf{x}}_n\tilde{\mathbf{x}}_n^\top = \begin{pmatrix} 2 & 2 \\ 2 & 2 \end{pmatrix}, \qquad \det(S - \lambda I) = \lambda(\lambda - 4) = 0 \;\Rightarrow\; \lambda_1 = 4,\ \lambda_2 = 0. \]
+      <p>For \(\lambda_1 = 4\): \(-2w_1 + 2w_2 = 0\), so \(w_1 = w_2\).</p>
+
+      <h3>1. First principal component</h3>
+      \[ \mathbf{w}_1 = \tfrac{1}{\sqrt{2}}(1, 1) \approx (0.7071, 0.7071) \]
+      <p>All five points lie on the line \(x_2 = x_1 + 1\), so this direction has zero orthogonal distance to every point and captures 100% of the variance (\(\lambda_2 = 0\)).</p>
+
+      <h3>2. Reconstruction error of (3, 3)</h3>
+      \[ \tilde{\mathbf{x}} = (3,3) - (0,1) = (3, 2), \qquad z = \mathbf{w}_1^\top\tilde{\mathbf{x}} = \tfrac{3 + 2}{\sqrt{2}} = 3.5355 \]
+      \[ \hat{\mathbf{x}} = \boldsymbol\mu + z\,\mathbf{w}_1 = (0,1) + (2.5, 2.5) = (2.5, 3.5) \]
+      \[ \lVert \mathbf{x} - \hat{\mathbf{x}} \rVert = \lVert (0.5, -0.5) \rVert = \sqrt{0.5} = \tfrac{1}{\sqrt{2}} \approx 0.7071 \]
+
+      <h3>3. Reconstruction error of (3, 4)</h3>
+      \[ \tilde{\mathbf{x}} = (3, 3), \qquad z = \tfrac{6}{\sqrt{2}} = 4.2426, \qquad \hat{\mathbf{x}} = (0,1) + (3, 3) = (3, 4) \]
+      \[ \lVert \mathbf{x} - \hat{\mathbf{x}} \rVert = 0 \]
+      <p>(3, 4) lies on the PC1 line, so it is reconstructed exactly.</p>
+      <figure>
+        <img src="media/p1_hand.png" alt="The five data points on the line x2 equals x1 plus 1, the mean at (0, 1), the PC1 line through them, and the point (3, 3) projected orthogonally onto (2.5, 3.5); the point (3, 4) sits on the line.">
+        <figcaption>The reconstruction is the orthogonal projection onto the PC1 line.</figcaption>
+      </figure>
+    </section>
+
+    <section id="part2">
+      <h2>Part 2: Data visualization</h2>
+      <figure class="wide">
+        <img src="media/p2_1d.png" alt="Four histograms by species. Sepal length and sepal width overlap heavily. Petal length and petal width each show setosa as a separate group at small values, with versicolor and virginica overlapping slightly.">
+        <figcaption>One feature at a time.</figcaption>
+      </figure>
+      <figure class="wide">
+        <img src="media/p2_2d.png" alt="Six pairwise scatter plots by species. Setosa is separate in every plot that includes a petal measurement; the petal length versus petal width plot shows three nearly distinct clusters.">
+        <figcaption>All six feature pairs.</figcaption>
+      </figure>
+      <figure class="wide">
+        <img src="media/p2_3d.png" alt="Two 3D scatter plots: sepal length, sepal width and petal length; and sepal length, petal length and petal width. Setosa forms a separate low cluster in both; versicolor and virginica sit side by side with a small overlap.">
+        <figcaption>Two three-feature combinations.</figcaption>
+      </figure>
+      <ul>
+        <li><strong>Petal length or petal width alone</strong> separates setosa perfectly: setosa petals are at most 1.9 cm long and 0.6 cm wide; the other species start at 3.0 cm and 1.0 cm.</li>
+        <li><strong>Petal length vs petal width</strong> gives the best clusters: three groups, with only a small versicolor/virginica overlap. The best single cut on petal width separates those two at 94% accuracy (petal length 93%).</li>
+        <li><strong>Sepal features</strong> separate poorly. Sepal width alone overlaps all three species; sepal length vs width isolates setosa but mixes the other two (best cut 73%).</li>
+        <li>Adding a third feature to the petal pair adds little; the petal measurements carry most of the class information.</li>
+      </ul>
+    </section>
+
+    <section id="part3">
+      <h2>Part 3: PCA</h2>
+      <p><code>sklearn.decomposition.PCA</code> on the raw measurements (all in cm, so not standardized). The data mean is (5.843, 3.057, 3.758, 1.199).</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Axis</th><th>Sepal length</th><th>Sepal width</th><th>Petal length</th><th>Petal width</th><th>Variance</th></tr></thead>
+          <tbody>
+            <tr><td>PC1</td><td>0.3614</td><td>−0.0845</td><td>0.8567</td><td>0.3583</td><td>4.2282</td></tr>
+            <tr><td>PC2</td><td>0.6566</td><td>0.7302</td><td>−0.1734</td><td>−0.0755</td><td>0.2427</td></tr>
+            <tr><td>PC3</td><td>−0.5820</td><td>0.5979</td><td>0.0762</td><td>0.5458</td><td>0.0782</td></tr>
+            <tr><td>PC4</td><td>0.3155</td><td>−0.3197</td><td>−0.4798</td><td>0.7537</td><td>0.0238</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure class="wide">
+        <img src="media/p3_pca.png" alt="Left: histogram of PC1 by species, setosa far left and separate, versicolor and virginica overlapping slightly. Middle: PC1 versus PC2 scatter with setosa isolated on the left. Right: 3D scatter of the top three PCs.">
+        <figcaption>Data projected onto the top 1, 2 and 3 principal axes.</figcaption>
+      </figure>
+      <p>PC1 is mostly petal length (0.86), plus sepal length and petal width: overall flower size. On PC1 alone, setosa is fully separated, and versicolor/virginica separate at 92% with one cut, about as well as the best single raw feature. PC2 is mostly sepal size (width and length). PC3 adds little visible separation.</p>
+    </section>
+
+    <section id="part4">
+      <h2>Part 4: Data compression</h2>
+      <p>For the centred data matrix \(X\) with singular values \(\sigma_i\), the total variance is proportional to the squared Frobenius norm, which splits across the PCs:</p>
+      \[ \lVert X \rVert_F^2 = \sum_{n,j} \tilde{x}_{nj}^2 = \sum_i \sigma_i^2 = (N - 1)\sum_i \lambda_i. \]
+      <p>So the fraction explained by the top \(k\) PCs is \(\sum_{i \le k}\sigma_i^2 / \lVert X\rVert_F^2\), and the rest, \(\lVert X - X_k \rVert_F^2 = \sum_{i > k}\sigma_i^2\), is the reconstruction error.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>PC</th><th>\(\lambda_i\)</th><th>Explained</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>4.2282</td><td>92.46%</td><td>92.46%</td></tr>
+            <tr class="final"><td>2</td><td>0.2427</td><td>5.31%</td><td>97.77%</td></tr>
+            <tr><td>3</td><td>0.0782</td><td>1.71%</td><td>99.48%</td></tr>
+            <tr><td>4</td><td>0.0238</td><td>0.52%</td><td>100%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figure>
+        <img src="media/p4_variance.png" alt="Bar chart of variance explained per PC, 92.46, 5.31, 1.71 and 0.52 percent, with a cumulative line at 92.46, 97.77, 99.48 and 100 percent, well above a dashed 50 percent line from PC1 onward.">
+        <figcaption>PC1 alone is far above the 50% line.</figcaption>
+      </figure>
+      <ol>
+        <li>The two-dimensional representation explains <strong>97.77%</strong> of the variance (\(4.4709 / 4.5730\)).</li>
+        <li><strong>One PC</strong> explains 50%: PC1 alone gives 92.46%.</li>
+      </ol>
+    </section>
+
+    <section id="part5">
+      <h2>Part 5: Non-linear components</h2>
+      <p><code>sklearn.manifold.Isomap(n_neighbors=3, n_components=2)</code>. With 3 neighbours the graph splits into two pieces (setosa, and the other two species); sklearn joins them with the shortest edge between pieces. sklearn embeds the geodesic distances with classical MDS (an eigendecomposition). The assignment describes MDS fitted by gradient descent, so the middle panel also fits metric MDS (SMACOF, iterative stress minimization) to the same geodesic distances.</p>
+      <figure class="wide">
+        <img src="media/p5_isomap.png" alt="Three 2D embeddings by species. Isomap with k equals 3: setosa collapsed to a tight line far left, versicolor and virginica forming two arms that overlap near their junction. Isomap distances with SMACOF: three clusters with setosa at the bottom right and versicolor and virginica side by side. PCA top 2: setosa on the left, versicolor and virginica adjacent with slight overlap.">
+        <figcaption>Isomap (k = 3), the same geodesic distances fitted by SMACOF, and PCA for comparison.</figcaption>
+      </figure>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>2-D embedding</th><th>Residual variance</th><th>5-NN accuracy (10-fold CV)</th></tr></thead>
+          <tbody>
+            <tr><td>PCA</td><td>0.0032</td><td>96.0%</td></tr>
+            <tr><td>Isomap, k = 3 (classical MDS)</td><td>0.0161</td><td>91.3%</td></tr>
+            <tr><td>Isomap distances, SMACOF</td><td>0.0107</td><td>96.0%</td></tr>
+            <tr><td>Raw 4-D data (reference)</td><td></td><td>96.7%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="small">Residual variance is \(1 - R^2\) between each method's target distances (Euclidean for PCA, geodesic for Isomap) and the 2-D embedding distances: lower means the 2-D map preserves the distances better.</p>
+      <p><strong>PCA is preferable here.</strong></p>
+      <ul>
+        <li><strong>Compression:</strong> PCA keeps 97.8% of the variance in 2-D, its distance residual is 5× lower than Isomap's, and it gives an explicit linear map that can reconstruct points and project new flowers. Isomap has no reconstruction and no direct out-of-sample map.</li>
+        <li><strong>Classification:</strong> PCA's 2-D embedding classifies as well as the full 4-D data (96.0% vs 96.7%). Isomap with k = 3 is worse (91.3%): with so few neighbours, versicolor and virginica points are linked across the class boundary, and the long graph paths stretch the two classes into overlapping arms. With SMACOF it only matches PCA.</li>
+        <li>Iris is close to linear (one PC carries 92% of the variance), so there is no curved manifold for Isomap to unfold. It also depends on k: accuracy rises from 91.3% at k = 3 to 96.0% at k = 20, where it approaches PCA.</li>
+      </ul>
+    </section>
+
+    <section id="code">
+      <h2>Code</h2>
+      <details open>
+        <summary>pca.py</summary>
+<pre><code class="language-python">import warnings
+import numpy as np
+from sklearn.datasets import load_iris
+from sklearn.decomposition import PCA
+from sklearn.manifold import MDS, Isomap
+from sklearn.model_selection import cross_val_score
+from sklearn.neighbors import KNeighborsClassifier
+
+warnings.filterwarnings(&quot;ignore&quot;)   # k = 3 graph is disconnected; sklearn joins the pieces
+FEATURES = [&quot;sepal length&quot;, &quot;sepal width&quot;, &quot;petal length&quot;, &quot;petal width&quot;]
+
+
+def pca_by_hand(X, k=1):
+    mu = X.mean(0)
+    S = (X - mu).T @ (X - mu) / len(X)
+    vals, vecs = np.linalg.eigh(S)
+    order = np.argsort(vals)[::-1]
+    return mu, vals[order], vecs[:, order][:, :k]
+
+
+def reconstruct(x, mu, W):
+    z = W.T @ (x - mu)
+    x_hat = mu + W @ z
+    return z, x_hat, np.linalg.norm(x - x_hat)
+
+
+def iris():
+    data = load_iris()
+    return data.data, data.target, list(data.target_names)
+
+
+def pca(X, k=4):
+    model = PCA(n_components=k).fit(X)
+    return model, model.transform(X)
+
+
+def explained(X):
+    Xc = X - X.mean(0)
+    s = np.linalg.svd(Xc, compute_uv=False)
+    return s ** 2 / np.linalg.norm(Xc, &quot;fro&quot;) ** 2
+
+
+def isomap(X, k=3, d=2):
+    model = Isomap(n_neighbors=k, n_components=d).fit(X)
+    return model, model.embedding_
+
+
+def isomap_smacof(iso, d=2):
+    # metric MDS by iterative stress minimization on the same geodesic distances
+    mds = MDS(n_components=d, dissimilarity=&quot;precomputed&quot;, n_init=4, random_state=0, normalized_stress=&quot;auto&quot;)
+    return mds.fit_transform(iso.dist_matrix_)
+
+
+def residual_variance(D_high, Y):
+    D_low = np.linalg.norm(Y[:, None] - Y[None], axis=-1)
+    iu = np.triu_indices(len(Y), 1)
+    return 1 - np.corrcoef(D_high[iu], D_low[iu])[0, 1] ** 2
+
+
+def knn_accuracy(Z, y, k=5):
+    return cross_val_score(KNeighborsClassifier(k), Z.reshape(len(Z), -1), y, cv=10).mean()
+
+
+if __name__ == &quot;__main__&quot;:
+    np.set_printoptions(precision=4, suppress=True)
+    P = np.array([[-2, -1], [-1, 0], [0, 1], [1, 2], [2, 3]], float)
+    mu, vals, W = pca_by_hand(P)
+    print(&quot;Part 1: mean&quot;, mu, &quot;eigenvalues&quot;, vals, &quot;PC1&quot;, W.ravel())
+    for x in ([3, 3], [3, 4]):
+        z, x_hat, err = reconstruct(np.array(x, float), mu, W)
+        print(f&quot;  {x}: z = {z[0]:.4f}, x_hat = {x_hat}, error = {err:.4f}&quot;)
+
+    X, y, names = iris()
+    model, Z = pca(X)
+    print(&quot;Part 3: mean&quot;, model.mean_)
+    for i, w in enumerate(model.components_):
+        print(f&quot;  PC{i + 1}&quot;, w, &quot;variance&quot;, round(model.explained_variance_[i], 4))
+
+    r = explained(X)
+    print(&quot;Part 4: explained&quot;, r, &quot;cumulative&quot;, np.cumsum(r))
+    print(&quot;  PCs for 50%:&quot;, int(np.searchsorted(np.cumsum(r), 0.5) + 1))
+
+    iso, Y = isomap(X)
+    D_geo = iso.dist_matrix_
+    D_euc = np.linalg.norm(X[:, None] - X[None], axis=-1)
+    for d in (1, 2):
+        Yd = isomap(X, d=d)[1]
+        print(f&quot;Part 5: {d}-D  isomap residual var {residual_variance(D_geo, Yd):.4f}  &quot;
+              f&quot;pca residual var {residual_variance(D_euc, Z[:, :d]):.4f}  &quot;
+              f&quot;5-NN acc isomap {knn_accuracy(Yd, y):.4f}  pca {knn_accuracy(Z[:, :d], y):.4f}&quot;)
+    Ys = isomap_smacof(iso)
+    print(f&quot;  2-D  isomap+SMACOF residual var {residual_variance(D_geo, Ys):.4f}  5-NN acc {knn_accuracy(Ys, y):.4f}&quot;)
+    print(&quot;  raw 4-D 5-NN acc&quot;, round(knn_accuracy(X, y), 4))</code></pre>
+      </details>
+      <p class="small"><a href="code/pca.py">Download pca.py</a> · <a href="code/plots.py">plots.py</a> (produces every figure on this page)</p>
+    </section>
+  </main>
+
+  <footer class="wrap"><p>Devon Kisob, SYDE 572, Fall 2026</p></footer>
+</body>
+</html>
