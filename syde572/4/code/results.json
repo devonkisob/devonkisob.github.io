@@ -1,0 +1,588 @@
+{
+ "cv": {
+  "alphas": [
+   0.01,
+   0.1,
+   0.5,
+   1,
+   2,
+   5,
+   10,
+   20,
+   50
+  ],
+  "acc": [
+   0.7602578119712486,
+   0.7828156166242335,
+   0.7976089086928315,
+   0.8001269966341489,
+   0.8024351659622608,
+   0.8047427300204527,
+   0.8044271642939169,
+   0.8015943910186747,
+   0.7875347961423397
+  ],
+  "alpha": 5
+ },
+ "sanity": {
+  "great": {
+   "neg": 0.0004170551682666588,
+   "pos": 0.0010415699263118107
+  },
+  "bad": {
+   "neg": 0.0003592007118726107,
+   "pos": 0.00013763417804219647
+  }
+ },
+ "sanity2": {
+  "neg": -26.117151207451474,
+  "pos": -25.456112211563376
+ },
+ "small": [
+  [
+   "great",
+   "pos",
+   0.7140765164285178
+  ],
+  [
+   "bad",
+   "neg",
+   0.27702196612197816
+  ],
+  [
+   "not good",
+   "neg",
+   0.42564404806451017
+  ],
+  [
+   "waste of money",
+   "neg",
+   0.04427516220783923
+  ],
+  [
+   "highly recommend",
+   "pos",
+   0.8698589189974225
+  ],
+  [
+   "not bad",
+   "neg",
+   0.1971976640239326
+  ]
+ ],
+ "main": {
+  "acc": 0.8166177087704574,
+  "ci": [
+   0.8005747271616824,
+   0.8316415036933519
+  ],
+  "n": 2383,
+  "confusion": {
+   "pos>pos": 901,
+   "pos>neg": 252,
+   "neg>pos": 185,
+   "neg>neg": 1045
+  }
+ },
+ "errors": [
+  [
+   0.9998864171135223,
+   "this bag is very small . my canon 20d fits nicely with a small lens , but you cannot fit more than one lens with the camera body . we kept the bag for informal use when we only need the body and one lens to avoid always having to carry a bulky bag",
+   "neg",
+   "pos",
+   54
+  ],
+  [
+   0.9996350376307541,
+   "i live in south africa where the series appeared 20 years ago.thanks to amazon i was able to relive the wonder of archie bunker where each episode provides laughs from one of the family , each of whom is brilliantly cast.i have series 3&4 and now want 1&2.do n't wait any longer , 24 episodes of absolute delight await you",
+   "neg",
+   "pos",
+   60
+  ],
+  [
+   0.9989833928715056,
+   "i bought zonealarm internet security suite for the included zonealarm pro firewall ( it cost much less that way ) . if i did n't already have norton antivirus , i 'd use the antivirus , too",
+   "pos",
+   "neg",
+   37
+  ],
+  [
+   0.9989487716100036,
+   "got this on ebay for $18 last year - a great deal . i am only bothering to rate this as it seems ridiculous that is rated below two other rather shoddy grant collections because of the holiday backlash . objectively rating the content instead of the marketing would work for me",
+   "pos",
+   "neg",
+   52
+  ],
+  [
+   0.9982957643799351,
+   "i saw this film a few years back on tv and really enjoyed it , but i notice it is presented in full screen format . is this the correct aspect ratio ? i hate to buy a botched pan / scan version....can anyone help me out ? ? ? ? ? ?",
+   "pos",
+   "neg",
+   53
+  ],
+  [
+   0.9972852636885732,
+   "over the last two years , i have found h&r block 's tax cut software to be simple to use to process an otherwise complex tax return . i would recommend it to anyone who wants a reliable tax preparation source without having to pay the accountant 's fees",
+   "pos",
+   "neg",
+   49
+  ],
+  [
+   0.9842700865178444,
+   "bridget jones , modern day woman , brillant and does n't know it , prone to accidents and mess ups but manages to come out of them . this is the book that started it all with the chick lit fever . bridget jones is my hero !",
+   "pos",
+   "neg",
+   48
+  ],
+  [
+   0.982513035605072,
+   "this movie is a reallllllllllllly scary movie . the only part i did n't like was that pervert mikks in the beginning . be warned of grossness . that is all i need to say",
+   "pos",
+   "neg",
+   35
+  ]
+ ],
+ "by_topic": {
+  "books": 0.8090185676392573,
+  "camera": 0.8671875,
+  "dvd": 0.8102189781021898,
+  "health": 0.7926267281105991,
+  "music": 0.8222748815165877,
+  "software": 0.8
+ },
+ "topic": {
+  "acc": 0.9051615610574906,
+  "ci": [
+   0.892737008060523,
+   0.9162819063073178
+  ],
+  "classes": [
+   "books",
+   "camera",
+   "dvd",
+   "health",
+   "music",
+   "software"
+  ],
+  "confusion": [
+   [
+    331,
+    2,
+    27,
+    4,
+    2,
+    11
+   ],
+   [
+    0,
+    371,
+    0,
+    5,
+    1,
+    7
+   ],
+   [
+    14,
+    5,
+    364,
+    4,
+    19,
+    5
+   ],
+   [
+    6,
+    54,
+    1,
+    360,
+    1,
+    12
+   ],
+   [
+    3,
+    2,
+    15,
+    4,
+    391,
+    7
+   ],
+   [
+    2,
+    7,
+    2,
+    2,
+    2,
+    340
+   ]
+  ]
+ },
+ "curve": [
+  [
+   953,
+   0.7356273604699958
+  ],
+  [
+   1906,
+   0.7864036928241712
+  ],
+  [
+   2859,
+   0.8010910616869492
+  ],
+  [
+   3812,
+   0.8036088963491398
+  ],
+  [
+   4765,
+   0.8027696181284095
+  ],
+  [
+   5718,
+   0.809483843894251
+  ],
+  [
+   6671,
+   0.8090642047838859
+  ],
+  [
+   7624,
+   0.8103231221149811
+  ],
+  [
+   8577,
+   0.8161980696600923
+  ],
+  [
+   9531,
+   0.8166177087704574
+  ]
+ ],
+ "features": {
+  "pos": [
+   [
+    "easy",
+    0.8073586937021826
+   ],
+   [
+    "great",
+    0.7678364970542226
+   ],
+   [
+    "excellent",
+    0.7620517787866739
+   ],
+   [
+    "best",
+    0.6601092235406281
+   ],
+   [
+    "highly",
+    0.6314586526633033
+   ],
+   [
+    "love",
+    0.6110834751516983
+   ],
+   [
+    "lens",
+    0.5762151691357218
+   ],
+   [
+    "amazing",
+    0.5713792110025171
+   ],
+   [
+    "season",
+    0.5625043904696145
+   ],
+   [
+    "wonderful",
+    0.5533925031199516
+   ],
+   [
+    "perfect",
+    0.496206779140941
+   ],
+   [
+    "favorite",
+    0.4805684175704741
+   ],
+   [
+    "life",
+    0.4495480688536606
+   ],
+   [
+    "job",
+    0.4401678094642989
+   ],
+   [
+    "fun",
+    0.437720826187844
+   ],
+   [
+    "features",
+    0.42322713241179066
+   ],
+   [
+    "recommend",
+    0.39371068929736097
+   ],
+   [
+    "zoom",
+    0.39150798303271195
+   ],
+   [
+    "lenses",
+    0.38565687075198696
+   ],
+   [
+    "price",
+    0.38558804052172313
+   ]
+  ],
+  "neg": [
+   [
+    "waste",
+    -0.8201223837027545
+   ],
+   [
+    "worst",
+    -0.7210802594913694
+   ],
+   [
+    "support",
+    -0.7066684808300678
+   ],
+   [
+    "bad",
+    -0.6794811559241403
+   ],
+   [
+    "money",
+    -0.6465345068775541
+   ],
+   [
+    "nothing",
+    -0.6354637897393793
+   ],
+   [
+    "?",
+    -0.6326529221449526
+   ],
+   [
+    "boring",
+    -0.6171665731189684
+   ],
+   [
+    "poor",
+    -0.5646042430281124
+   ],
+   [
+    "horrible",
+    -0.5614596505607974
+   ],
+   [
+    "disappointed",
+    -0.5269374224511711
+   ],
+   [
+    "customer",
+    -0.5233359195560165
+   ],
+   [
+    "author",
+    -0.5009397752056497
+   ],
+   [
+    "unfortunately",
+    -0.4760667754681922
+   ],
+   [
+    "terrible",
+    -0.46999879568443426
+   ],
+   [
+    "return",
+    -0.45931427161919736
+   ],
+   [
+    "ok",
+    -0.456658592796245
+   ],
+   [
+    "worse",
+    -0.4464905742062122
+   ],
+   [
+    "service",
+    -0.4441900115838653
+   ],
+   [
+    "guess",
+    -0.4420952286083484
+   ]
+  ],
+  "alpha": 200
+ },
+ "variants": {
+  "unigrams": {
+   "acc": 0.8166177087704574,
+   "ci": [
+    0.8005747271616824,
+    0.8316415036933519
+   ],
+   "mcnemar": [
+    0,
+    0,
+    1.0
+   ]
+  },
+  "negation marking": {
+   "acc": 0.8040285354595048,
+   "ci": [
+    0.7876067987897822,
+    0.8194716097648532
+   ],
+   "mcnemar": [
+    103,
+    133,
+    0.05883095209626244
+   ]
+  },
+  "unigrams + bigrams": {
+   "acc": 0.853545950482585,
+   "ci": [
+    0.8387811956138069,
+    0.867172647322398
+   ],
+   "mcnemar": [
+    128,
+    40,
+    6.181833481984446e-12
+   ]
+  },
+  "negation + bigrams": {
+   "acc": 0.8514477549307595,
+   "ci": [
+    0.8366029018690009,
+    0.8651613040171373
+   ],
+   "mcnemar": [
+    161,
+    78,
+    8.480599149911663e-08
+   ]
+  }
+ },
+ "svm": {
+  "acc": 0.8522870331514897,
+  "ci": [
+   0.8374741010811003,
+   0.8659659596250645
+  ],
+  "mcnemar": [
+   200,
+   115,
+   1.932357564701885e-06
+  ],
+  "vs_best": [
+   159,
+   157,
+   0.9551509825128465
+  ]
+ },
+ "domain": {
+  "camera>camera": 0.8525,
+  "camera>books": 0.7175,
+  "books>camera": 0.64,
+  "books>books": 0.7475
+ },
+ "domain_full": {
+  "books>books": 0.7475,
+  "books>camera": 0.64,
+  "books>dvd": 0.645,
+  "books>health": 0.59,
+  "books>music": 0.6675,
+  "books>software": 0.6005221932114883,
+  "camera>books": 0.7175,
+  "camera>camera": 0.8525,
+  "camera>dvd": 0.705,
+  "camera>health": 0.7275,
+  "camera>music": 0.6875,
+  "camera>software": 0.7806788511749347,
+  "dvd>books": 0.77,
+  "dvd>camera": 0.71,
+  "dvd>dvd": 0.7725,
+  "dvd>health": 0.665,
+  "dvd>music": 0.775,
+  "dvd>software": 0.6866840731070496,
+  "health>books": 0.7225,
+  "health>camera": 0.785,
+  "health>dvd": 0.7,
+  "health>health": 0.8125,
+  "health>music": 0.735,
+  "health>software": 0.7728459530026109,
+  "music>books": 0.755,
+  "music>camera": 0.725,
+  "music>dvd": 0.745,
+  "music>health": 0.7025,
+  "music>music": 0.8075,
+  "music>software": 0.7101827676240209,
+  "software>books": 0.595,
+  "software>camera": 0.7375,
+  "software>dvd": 0.65,
+  "software>health": 0.75,
+  "software>music": 0.69,
+  "software>software": 0.8172323759791122
+ },
+ "gnb": {
+  "mean": 0.9534999999999999,
+  "std": 0.03317001658124396,
+  "sk_mean": 0.9534999999999999,
+  "agree": 1.0,
+  "params": {
+   "setosa": {
+    "mean": [
+     5.025,
+     3.4444444444444438,
+     1.4694444444444439,
+     0.24166666666666659
+    ],
+    "std": [
+     0.34830940906677277,
+     0.380383172636082,
+     0.16127864852216428,
+     0.0982485510212633
+    ]
+   },
+   "versicolor": {
+    "mean": [
+     5.9849999999999985,
+     2.7625000000000006,
+     4.295,
+     1.3474999999999997
+    ],
+    "std": [
+     0.5298820623497271,
+     0.32610389448763105,
+     0.45218911972757597,
+     0.1923375938291836
+    ]
+   },
+   "virginica": {
+    "mean": [
+     6.644117647058824,
+     2.9617647058823526,
+     5.623529411764705,
+     2.0470588235294107
+    ],
+    "std": [
+     0.625530916370758,
+     0.3298972263157055,
+     0.5472169284497759,
+     0.27357684598196436
+    ]
+   }
+  }
+ }
+}

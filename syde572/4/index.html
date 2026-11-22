@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SYDE 572 Assignment 4 · Devon Kisob</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body, {delimiters: [{left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false}]})"></script>
+  <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+  <header class="site-header wrap">
+    <p class="site-name"><a href="../../">Devon Kisob</a></p>
+    <p class="site-role">Systems Design Engineering (Computing Option), University of Waterloo, C/O May 2027</p>
+    <nav class="route" aria-label="Main">
+      <ul>
+        <li><a href="../../">About</a></li>
+        <li><a href="../../publications/">Publications</a></li>
+        <li><a href="../../coursework/" aria-current="page">Coursework</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <p class="crumbs"><a href="../../coursework/">Coursework</a> / SYDE 572, Pattern Recognition / Assignment 4</p>
+    <h1 class="page-title">Assignment 4: Text Classification with Naive Bayes</h1>
+    <p class="lede">A multinomial Naive Bayes sentiment classifier, written from scratch, for 11,914 product reviews from Blitzer et al. (2007), covering six topics: books, camera, dvd, health, music and software.</p>
+
+    <nav class="toc" aria-label="Contents">
+      <ol>
+        <li><a href="#model">Model and training</a></li>
+        <li><a href="#sanity">Sanity checks</a></li>
+        <li><a href="#eval">Evaluation</a></li>
+        <li><a href="#errors">Error analysis</a></li>
+        <li><a href="#optional">Optional tasks</a>
+          <ol>
+            <li><a href="#topic">Six-category topic classifier</a></li>
+            <li><a href="#curve">Learning curve</a></li>
+            <li><a href="#features">Informative features</a></li>
+            <li><a href="#improve">Improving the features, and scikit-learn</a></li>
+            <li><a href="#domain">Domain sensitivity</a></li>
+            <li><a href="#gnb">Naive Bayes for numerical data</a></li>
+          </ol>
+        </li>
+        <li><a href="#code">Code</a></li>
+      </ol>
+    </nav>
+
+    <section id="model">
+      <h2>Model and training</h2>
+      <p><strong>Split.</strong> The first 80% of the (pre-shuffled) file is the training set: 9,531 documents. The remaining 2,383 documents are the evaluation set.</p>
+      <p><strong>Model.</strong> A document \(d = (w_1, \dots, w_n)\) and label \(c\) are scored with log probabilities:</p>
+      \[ \log P(c, d) = \log P(c) + \sum_{i=1}^{n} \log P(w_i \mid c), \qquad P(w \mid c) = \frac{N_{c,w} + \alpha}{N_c + \alpha V}, \]
+      <p>where \(N_{c,w}\) counts word \(w\) in class \(c\), \(N_c\) is the total word count of class \(c\), and \(V = 52{,}392\) is the training vocabulary size. <code>train_nb</code> stores one <code>Counter</code> per class plus the class log priors, so \(\alpha\) can change without retraining. A word never seen in training gets \(\alpha / (N_c + \alpha V)\) in both classes, so it barely affects the decision. The classifier returns \(\arg\max_c \log P(c, d)\).</p>
+      <p><strong>Smoothing.</strong> \(\alpha\) was chosen by 5-fold cross-validation on the training set only. Accuracy is flat from 1 to 10 and peaks at <strong>\(\alpha = 5\)</strong>.</p>
+      <figure>
+        <img src="media/smoothing.png" alt="Cross-validation accuracy versus smoothing alpha on a log scale: 76.0 percent at 0.01, rising to a peak of 80.47 percent at alpha 5, then falling to 78.8 percent at 50.">
+      </figure>
+    </section>
+
+    <section id="sanity">
+      <h2>Sanity checks</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Document</th><th>\(P(\text{pos}, d)\)</th><th>\(P(\text{neg}, d)\)</th></tr></thead>
+          <tbody>
+            <tr><td>great</td><td><strong>0.00104</strong></td><td>0.00042</td></tr>
+            <tr><td>bad</td><td>0.00014</td><td><strong>0.00036</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><code>['a', 'top-quality', 'performance']</code> does not crash: "top-quality" is unseen and simply gets the smoothed probability (log scores −25.46 pos, −26.12 neg).</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Document</th><th>great</th><th>bad</th><th>not good</th><th>waste of money</th><th>highly recommend</th><th>not bad</th></tr></thead>
+          <tbody>
+            <tr><td><code>classify_nb</code></td><td>pos</td><td>neg</td><td>neg</td><td>neg</td><td>pos</td><td>neg</td></tr>
+            <tr><td>\(P(\text{pos} \mid d)\)</td><td>0.71</td><td>0.28</td><td>0.43</td><td>0.04</td><td>0.87</td><td>0.20</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>All as expected except "not bad". A bag of words cannot see that "not" flips "bad"; see <a href="#improve">feature improvements</a>.</p>
+    </section>
+
+    <section id="eval">
+      <h2>Evaluation</h2>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th></th><th>Predicted pos</th><th>Predicted neg</th></tr></thead>
+          <tbody>
+            <tr><td>True pos (1,153)</td><td>901</td><td>252</td></tr>
+            <tr><td>True neg (1,230)</td><td>185</td><td>1,045</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>Accuracy = 1,946 / 2,383 = 81.66%</strong>. The 95% Wilson confidence interval is <strong>[80.06%, 83.16%]</strong>, i.e. the interval for a binomial proportion with \(n = 2{,}383\):</p>
+      \[ \frac{\hat p + \frac{z^2}{2n} \pm z\sqrt{\frac{\hat p(1-\hat p)}{n} + \frac{z^2}{4n^2}}}{1 + \frac{z^2}{n}}, \quad z = 1.96. \]
+      <p>By topic: camera 86.7%, music 82.2%, dvd 81.0%, books 80.9%, software 80.0%, health 79.3%.</p>
+    </section>
+
+    <section id="errors">
+      <h2>Error analysis</h2>
+      <p>Misclassified evaluation documents of at most 60 words, ranked by how confident the wrong prediction was:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>True → predicted</th><th>\(P\)(wrong)</th><th>Review (abridged)</th></tr></thead>
+          <tbody>
+            <tr><td>neg → pos</td><td>0.9999</td><td>"this bag is very small . my canon 20d fits nicely with a small lens , but you cannot fit more than one lens …"</td></tr>
+            <tr><td>neg → pos</td><td>0.9996</td><td>"… relive the wonder of archie bunker where each episode provides laughs … brilliantly cast … 24 episodes of absolute delight await you"</td></tr>
+            <tr><td>pos → neg</td><td>0.9973</td><td>"… h&amp;r block 's tax cut software to be simple to use to process an otherwise complex tax return . i would recommend it …"</td></tr>
+            <tr><td>pos → neg</td><td>0.9983</td><td>"i saw this film … really enjoyed it , but … is this the correct aspect ratio ? i hate to buy a botched pan / scan version … ? ? ? ? ? ?"</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li><strong>Topic words act as sentiment.</strong> The camera bag complaint is mild, while "canon", "lens" and "fits nicely" all lean positive, because camera reviews in this data use them mostly in praise. The tax software review is lost to "tax return": "return" is a strong negative word (returning a product), here used in another sense.</li>
+        <li><strong>Off-topic or neutral text.</strong> The aspect-ratio review is a question, not an opinion. "?", "hate" and "botched" are all negative cues, although the stated sentiment ("really enjoyed it") is positive.</li>
+        <li><strong>Label noise.</strong> The Archie Bunker review is plainly enthusiastic but labelled negative. No bag-of-words model can get it right, and some of the remaining 18% error is of this kind.</li>
+      </ul>
+    </section>
+
+    <section id="optional">
+      <h2>Optional tasks</h2>
+
+      <h3 id="topic">Six-category topic classifier</h3>
+      <p>The same <code>train_nb</code>, with the topic column (index 0) as label and \(\alpha = 1\); no code changes were needed since the classes are not hard-coded. Accuracy is <strong>90.5%</strong> (95% CI [89.3%, 91.6%]).</p>
+      <figure>
+        <img src="media/topic.png" alt="Topic confusion matrix. The diagonal holds most counts; the largest off-diagonal cells are 54 health reviews predicted as camera, 27 books as dvd and 19 dvd as music.">
+        <figcaption>The main confusions are health → camera (both are reviews of physical products, sharing words such as product, item, price, order, work), books → dvd (plots, characters) and dvd → music (sound, listen).</figcaption>
+      </figure>
+
+      <h3 id="curve">Learning curve</h3>
+      <figure>
+        <img src="media/curve.png" alt="Learning curve: accuracy rises from 73.6 percent with 953 training documents to 80.1 percent at 2,859, then creeps up to 81.7 percent at 9,531, with 95 percent intervals about plus or minus 1.6 points.">
+        <figcaption>Most of the gain comes from the first 3,000 documents. After that, the curve is nearly flat and every step is within the confidence band of the next.</figcaption>
+      </figure>
+
+      <h3 id="features">Informative features</h3>
+      <p><code>print_top_nb</code> ranks each word by the log-likelihood ratio \(\log P(w \mid \text{pos}) - \log P(w \mid \text{neg})\). With \(\alpha = 5\), the top of the list is names that happen to occur in only one class: pluto (60 pos, 0 neg), keaton, buffy, seagal (0 pos, 41 neg), roxio. A large \(\alpha = 200\) adds 200 pseudo-counts to every word, which pulls these moderate-count ratios toward 0, so frequent, consistently polar words rise to the top.</p>
+      <figure>
+        <img src="media/features.png" alt="Diverging bar chart of the 15 most positive and 15 most negative words. Positive: easy, great, excellent, best, highly, love, lens, amazing, season, wonderful. Negative: waste, worst, support, bad, money, nothing, question mark, boring, poor, horrible.">
+        <figcaption>Clear sentiment words dominate, but domain words leak in: lens and season (praised camera and TV-series reviews), support and customer (software and product complaints), and "?" (complaints ask questions).</figcaption>
+      </figure>
+
+      <h3 id="improve">Improving the features, and scikit-learn</h3>
+      <p>The same Naive Bayes model (\(\alpha = 5\)) was trained on modified tokens. <em>Negation marking</em> follows Pang et al.: every token after a negation word (not, no, never, n't, …) is prefixed with <code>NOT_</code> until the next punctuation mark. <em>Bigrams</em> add every adjacent word pair as an extra token. Each variant is compared with the baseline by McNemar's exact test on the documents where exactly one of the two classifiers is right.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Classifier</th><th>Accuracy</th><th>95% CI</th><th>Only new right / only baseline right</th><th>McNemar \(p\)</th></tr></thead>
+          <tbody>
+            <tr><td>NB, unigrams (baseline)</td><td>81.66%</td><td>[80.1, 83.2]</td><td></td><td></td></tr>
+            <tr><td>NB, negation marking</td><td>80.40%</td><td>[78.8, 81.9]</td><td>103 / 133</td><td>0.059</td></tr>
+            <tr class="final"><td>NB, unigrams + bigrams</td><td>85.35%</td><td>[83.9, 86.7]</td><td>128 / 40</td><td>\(6 \times 10^{-12}\)</td></tr>
+            <tr><td>NB, negation + bigrams</td><td>85.14%</td><td>[83.7, 86.5]</td><td>161 / 78</td><td>\(8 \times 10^{-8}\)</td></tr>
+            <tr><td>scikit-learn TF-IDF + LinearSVC</td><td>85.23%</td><td>[83.7, 86.6]</td><td>200 / 115</td><td>\(2 \times 10^{-6}\)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul>
+        <li><strong>Bigrams help significantly</strong> (+3.7 points). Pairs such as "not_bad", "waste_of" and "highly_recommend" capture short-range negation and phrases.</li>
+        <li><strong>Negation marking alone does not help</strong> (−1.3 points, not significant). Prefixing every word up to the next punctuation mark doubles the vocabulary and splits the counts for common words, which hurts more than the fixed negations help.</li>
+        <li><strong>NB with bigrams matches the LinearSVC</strong> (McNemar \(p = 0.96\), 159 vs 157 discordant documents), while unigram NB is significantly worse than the SVM.</li>
+      </ul>
+
+      <h3 id="domain">Domain sensitivity</h3>
+      <p>Each topic was split 80/20 on its own, and a sentiment classifier trained on one topic was tested on every topic's evaluation part. <strong>Camera → books:</strong> 71.8%, versus 74.8% for a books-trained classifier, a 3-point drop. <strong>Books → camera:</strong> 64.0%, versus 85.3% in-domain, a 21-point drop.</p>
+      <figure>
+        <img src="media/domain.png" alt="Six by six heatmap of sentiment accuracy, trained topic by tested topic. The diagonal is highest, 75 to 85 percent. Off-diagonal cells range from 59 percent (books tested on health) to 78 percent.">
+        <figcaption>Diagonal (in-domain) average 80.2%, off-diagonal average 70.5%. Related domains transfer better: dvd ↔ music, camera ↔ software ↔ health.</figcaption>
+      </figure>
+      <p>The drop is asymmetric. Book reviews talk about plot and authors, words that are useless for cameras. Camera reviews use generic product words (works, easy, return, waste) that carry over to books reasonably well.</p>
+
+      <h3 id="gnb">Naive Bayes for numerical data</h3>
+      <p>For Iris, the word probabilities are replaced by one Gaussian per class and feature (12 in total), with maximum-likelihood means and variances. The score becomes</p>
+      \[ \log P(c) + \sum_{j=1}^{4} \left[ -\tfrac{1}{2}\log(2\pi\sigma_{cj}^2) - \frac{(x_j - \mu_{cj})^2}{2\sigma_{cj}^2} \right]. \]
+      <p>Over 100 random 110/40 splits, accuracy is <strong>95.4% ± 3.3%</strong>, identical on every split to scikit-learn's <code>GaussianNB</code>.</p>
+    </section>
+
+    <section id="code">
+      <h2>Code</h2>
+      <p><code>nb.py</code> contains the from-scratch classifier and the required functions (<code>train_nb</code>, <code>score_doc_label</code>, <code>classify_nb</code>, <code>classify_documents</code>, <code>accuracy</code>), the statistics, and the optional tasks. scikit-learn appears only in <code>train_sklearn</code> and as the <code>GaussianNB</code> reference. Running it reproduces the required results; <code>experiments.py</code> produces every number on this page.</p>
+      <details open>
+        <summary>nb.py</summary>
+<pre><code class="language-python">import os
+from collections import Counter
+import numpy as np
+from scipy.stats import binomtest
+
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), &quot;..&quot;, &quot;all_sentiment_shuffled.txt&quot;)
+ALPHAS = [0.01, 0.1, 0.5, 1, 2, 5, 10, 20, 50]
+NEGATIONS = {&quot;not&quot;, &quot;no&quot;, &quot;never&quot;, &quot;n&#x27;t&quot;, &quot;cannot&quot;, &quot;nothing&quot;, &quot;nobody&quot;, &quot;none&quot;, &quot;nor&quot;, &quot;without&quot;}
+PUNCT = {&quot;.&quot;, &quot;,&quot;, &quot;!&quot;, &quot;?&quot;, &quot;;&quot;, &quot;:&quot;}
+
+
+# ---------- data ----------
+
+def read_documents(doc_file=DATA, label_col=1):
+    docs, labels = [], []
+    with open(doc_file, encoding=&quot;utf-8&quot;) as f:
+        for line in f:
+            words = line.strip().split()
+            docs.append(words[3:])
+            labels.append(words[label_col])
+    return docs, labels
+
+
+def split(docs, labels, frac=0.8):
+    k = int(frac * len(docs))
+    return docs[:k], labels[:k], docs[k:], labels[k:]
+
+
+# ---------- Naive Bayes (multinomial, additive smoothing) ----------
+
+def train_nb(documents, labels, alpha=1.0):
+    classes = sorted(set(labels))
+    counts = {c: Counter() for c in classes}
+    for doc, c in zip(documents, labels):
+        counts[c].update(doc)
+    vocab = set().union(*counts.values())
+    n = Counter(labels)
+    return dict(classes=classes, counts=counts, totals={c: sum(counts[c].values()) for c in classes},
+                V=len(vocab), alpha=alpha, log_prior={c: np.log(n[c] / len(labels)) for c in classes})
+
+
+def with_alpha(model, alpha):
+    return {**model, &quot;alpha&quot;: alpha}
+
+
+def log_p_word(w, c, model):
+    a = model[&quot;alpha&quot;]
+    return np.log((model[&quot;counts&quot;][c][w] + a) / (model[&quot;totals&quot;][c] + a * model[&quot;V&quot;]))
+
+
+def score_doc_label(document, label, model):
+    return model[&quot;log_prior&quot;][label] + sum(log_p_word(w, label, model) for w in document)
+
+
+def classify_nb(document, model):
+    return max(model[&quot;classes&quot;], key=lambda c: score_doc_label(document, c, model))
+
+
+def classify_documents(docs, model):
+    return [classify_nb(d, model) for d in docs]
+
+
+def accuracy(true_labels, guessed_labels):
+    return np.mean([t == g for t, g in zip(true_labels, guessed_labels)])
+
+
+def posterior(document, model):
+    s = np.array([score_doc_label(document, c, model) for c in model[&quot;classes&quot;]])
+    return dict(zip(model[&quot;classes&quot;], np.exp(s - np.logaddexp.reduce(s))))
+
+
+# ---------- statistics ----------
+
+def wilson(acc, n, z=1.96):
+    centre = (acc + z * z / (2 * n)) / (1 + z * z / n)
+    half = z * np.sqrt(acc * (1 - acc) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    return centre - half, centre + half
+
+
+def mcnemar(true, a, b):
+    a_only = sum(x == t != y for t, x, y in zip(true, a, b))
+    b_only = sum(y == t != x for t, x, y in zip(true, a, b))
+    return a_only, b_only, binomtest(a_only, a_only + b_only).pvalue if a_only + b_only else 1.0
+
+
+def cv_alpha(docs, labels, alphas=ALPHAS, k=5):
+    folds = np.array_split(np.arange(len(docs)), k)
+    acc = np.zeros((len(alphas), k))
+    for j, val in enumerate(folds):
+        tr = np.setdiff1d(np.arange(len(docs)), val)
+        model = train_nb([docs[i] for i in tr], [labels[i] for i in tr])
+        for i, a in enumerate(alphas):
+            acc[i, j] = accuracy([labels[v] for v in val], classify_documents([docs[v] for v in val], with_alpha(model, a)))
+    return acc.mean(1)
+
+
+# ---------- optional tasks ----------
+
+def print_top_nb(k, model, min_count=0):
+    pos, neg = model[&quot;classes&quot;][1], model[&quot;classes&quot;][0]
+    words = [w for w in set(model[&quot;counts&quot;][pos]) | set(model[&quot;counts&quot;][neg])
+             if model[&quot;counts&quot;][pos][w] + model[&quot;counts&quot;][neg][w] &gt;= min_count]
+    lr = {w: log_p_word(w, pos, model) - log_p_word(w, neg, model) for w in words}
+    ranked = sorted(lr, key=lr.get)
+    top_pos, top_neg = ranked[::-1][:k], ranked[:k]
+    print(f&quot;{pos}:&quot;, &quot;, &quot;.join(top_pos))
+    print(f&quot;{neg}:&quot;, &quot;, &quot;.join(top_neg))
+    return [(w, lr[w]) for w in top_pos], [(w, lr[w]) for w in top_neg]
+
+
+def learning_curve(train_docs, train_labels, eval_docs, eval_labels, alpha, fracs=np.arange(0.1, 1.01, 0.1)):
+    out = []
+    for f in fracs:
+        n = int(f * len(train_docs))
+        model = train_nb(train_docs[:n], train_labels[:n], alpha)
+        out.append((n, accuracy(eval_labels, classify_documents(eval_docs, model))))
+    return out
+
+
+def mark_negation(doc):
+    out, neg = [], False
+    for w in doc:
+        if w in PUNCT:
+            neg = False
+            out.append(w)
+        else:
+            out.append(&quot;NOT_&quot; + w if neg else w)
+            if w in NEGATIONS or w.endswith(&quot;n&#x27;t&quot;):
+                neg = True
+    return out
+
+
+def add_bigrams(doc):
+    return doc + [a + &quot;_&quot; + b for a, b in zip(doc, doc[1:])]
+
+
+def domain_matrix(docs, labels, topics, domains, alpha):
+    data = {}
+    for d in domains:
+        idx = [i for i, t in enumerate(topics) if t == d]
+        data[d] = split([docs[i] for i in idx], [labels[i] for i in idx])
+    acc = {}
+    for src in domains:
+        model = train_nb(data[src][0], data[src][1], alpha)
+        for dst in domains:
+            acc[src, dst] = accuracy(data[dst][3], classify_documents(data[dst][2], model))
+    return acc
+
+
+def train_sklearn(docs, labels):
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.pipeline import make_pipeline
+    from sklearn.svm import LinearSVC
+    vec = TfidfVectorizer(preprocessor=lambda x: x, tokenizer=lambda x: x, token_pattern=None)
+    return make_pipeline(vec, LinearSVC()).fit(docs, labels)
+
+
+# ---------- Gaussian Naive Bayes for numerical data ----------
+
+def train_gnb(X, y):
+    classes = sorted(set(y))
+    y = np.asarray(y)
+    return dict(classes=classes,
+                log_prior={c: np.log(np.mean(y == c)) for c in classes},
+                mean={c: X[y == c].mean(0) for c in classes},
+                var={c: X[y == c].var(0) for c in classes})   # maximum likelihood (divide by n)
+
+
+def score_gnb(x, c, model):
+    m, v = model[&quot;mean&quot;][c], model[&quot;var&quot;][c]
+    return model[&quot;log_prior&quot;][c] + np.sum(-0.5 * np.log(2 * np.pi * v) - (x - m) ** 2 / (2 * v))
+
+
+def classify_gnb(X, model):
+    return [max(model[&quot;classes&quot;], key=lambda c: score_gnb(x, c, model)) for x in X]
+
+
+if __name__ == &quot;__main__&quot;:
+    all_docs, all_labels = read_documents()
+    train_docs, train_labels, eval_docs, eval_labels = split(all_docs, all_labels)
+    print(f&quot;{len(train_docs)} training, {len(eval_docs)} evaluation documents&quot;)
+
+    cv = cv_alpha(train_docs, train_labels)
+    alpha = ALPHAS[int(np.argmax(cv))]
+    print(&quot;5-fold CV accuracy by alpha:&quot;, dict(zip(ALPHAS, cv.round(4))), &quot;-&gt; alpha =&quot;, alpha)
+    model = train_nb(train_docs, train_labels, alpha)
+
+    for w in [&quot;great&quot;, &quot;bad&quot;]:
+        print(f&quot;sanity 1 [{w}]:&quot;, {c: f&quot;{np.exp(score_doc_label([w], c, model)):.5f}&quot; for c in model[&quot;classes&quot;]})
+    print(&quot;sanity 2:&quot;, {c: round(score_doc_label([&quot;a&quot;, &quot;top-quality&quot;, &quot;performance&quot;], c, model), 3) for c in model[&quot;classes&quot;]})
+    for d in ([&quot;great&quot;], [&quot;bad&quot;], [&quot;not&quot;, &quot;good&quot;], [&quot;waste&quot;, &quot;of&quot;, &quot;money&quot;], [&quot;highly&quot;, &quot;recommend&quot;]):
+        print(&quot;  classify&quot;, d, &quot;-&gt;&quot;, classify_nb(d, model))
+
+    guesses = classify_documents(eval_docs, model)
+    acc = accuracy(eval_labels, guesses)
+    print(f&quot;accuracy {acc:.4f}, 95% Wilson CI {wilson(acc, len(eval_docs))}&quot;)</code></pre>
+      </details>
+      <p class="small"><a href="code/nb.py">Download nb.py</a> · <a href="code/experiments.py">experiments.py</a> · <a href="code/plots.py">plots.py</a> (produces every figure on this page)</p>
+    </section>
+  </main>
+
+  <footer class="wrap"><p>Devon Kisob, SYDE 572, Fall 2026</p></footer>
+</body>
+</html>
